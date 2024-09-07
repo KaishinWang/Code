@@ -1,0 +1,182 @@
+AWSTemplateFormatVersion: 2010-09-09
+#Description: 
+Parameters:
+  VpcId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: adm-vpc-id-01
+#Metadata:
+#Mappings:
+#Conditions:
+Resources:
+#----------------------------------------------
+# Subnet01を作成
+#----------------------------------------------
+  LibraryEC2SubnetPublic1c: 
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: ap-northeast-1
+      CidrBlock: 
+      VpcId: !Ref VpcId
+      Tags: 
+        - Key: Name
+          Value: adm-sub-devlibrary-pub-ec2-c-01
+        - Key: ProjectName
+          Value: adm-library
+#----------------------------------------------
+# Subnet02を作成
+#----------------------------------------------
+  LibraryEC2SubnetPrivate1c: 
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: ap-northeast-1
+      CidrBlock: 
+      VpcId: !Ref VpcId
+      Tags: 
+        - Key: Name
+          Value: adm-sub-devlibrary--pri-ec2-c-01
+        - Key: ProjectName
+          Value: adm-library
+#----------------------------------------------
+# Eip1，2作成
+#----------------------------------------------
+  NatGatewayEIP3:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: adm-eip-devlibrary--03
+        - Key: ProjectName
+          Value: adm-library
+#----------------------------------------------
+# NatGateway1aを作成
+#----------------------------------------------
+  LibraryNatGateway1c:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIP3.AllocationId
+      SubnetId: !Ref LibraryEC2SubnetPublic1c
+      Tags:
+        - Key: Name
+          Value: adm-ngw-devlibrary-c-03
+        - Key: ProjectName
+          Value: adm-library
+#----------------------------------------------
+# SecurityGroup01を作成
+#----------------------------------------------
+  LibrarySecurityGroup01:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: adm-sg-dev-ec2-01
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: adm-sg-devlibrary-ec2-01
+        - Key: ProjectName
+          Value: adm-library
+#----------------------------------------------
+# SecurityGroup02を作成
+#----------------------------------------------
+  LibrarySecurityGroup02:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: adm-sg-devlibrary-ec2-02
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          SourceSecurityGroupId: !Ref LibrarySecurityGroup01
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: adm-sg-devlibrary-ec2-02
+        - Key: ProjectName
+          Value: adm-library
+#----------------------------------------------
+# routetable01を作成
+#----------------------------------------------
+  LibraryPublicRouteTable01:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: adm-rtb-devlibrary-pub-01
+        - Key: ProjectName
+          Value: adm-library
+
+  LibraryPublicRouteTable01Route01: 
+    Type: AWS::EC2::Route
+    DependsOn: LibraryPublicRouteTable01
+    Properties: 
+      RouteTableId: !Ref LibraryPublicRouteTable01
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+
+  LibraryPublicRouteTable01Association01:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref LibraryPublicRouteTable01
+      SubnetId: !Ref LibraryEC2SubnetPublic1c
+#----------------------------------------------
+# routetable02を作成
+#----------------------------------------------
+  LibraryPrivateRouteTable01:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: adm-rtb-devlibrary-pri-01
+        - Key: ProjectName
+          Value: adm-library
+
+  LibraryPrivateRouteTable01Route01: 
+    Type: AWS::EC2::Route
+    Properties: 
+      RouteTableId: !Ref LibraryPrivateRouteTable01
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref LibraryNatGateway1c
+
+  LibraryPrivateRouteTable01Association01:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref LibraryPrivateRouteTable01
+      SubnetId: !Ref LibraryEC2SubnetPrivate1c
+
+  LibraryEC2Instance01:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0d3bbfd074edd7acb
+      InstanceType: m5.large
+      SubnetId: !Ref LibraryEC2SubnetPublic1c
+      SecurityGroupIds:
+        - !Ref LibrarySecurityGroup01
+      Tags:
+        - Key: Name
+          Value: adm-ec2-devlibrary-pub-01
+        - Key: ProjectName
+          Value: adm-library
+
+  LibraryEC2Instance02:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0d3bbfd074edd7acb
+      InstanceType: m5.large
+      SubnetId: !Ref LibraryEC2SubnetPrivate1c
+      SecurityGroupIds:
+        - !Ref LibrarySecurityGroup02
+      Tags:
+        - Key: Name
+          Value: adm-ec2-devlibrary-pri-01
+        - Key: ProjectName
+          Value: adm-library
+
+
+#Transform:
+#Outputs:
